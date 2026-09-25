@@ -1,11 +1,9 @@
 """Smart City 360 - a beginner-friendly city simulator demo."""
 
 from datetime import datetime
-
 import streamlit as st
 
 
-# These are fictional starting values for the demo city.
 STARTING_STATS = {
     "population": 1_240_000,
     "traffic": 68,
@@ -28,11 +26,11 @@ SECTIONS = [
 SECTION_INFO = {
     "Traffic": (
         "Traffic congestion",
-        "This demo lowers congestion a little each time you start the simulation.",
+        "Congestion changes when traffic events are handled by the control center.",
     ),
     "Energy": (
         "Renewable energy share",
-        "The Power Plant gradually adds more clean energy to the fictional city grid.",
+        "The Power Plant supplies clean energy to the fictional city grid.",
     ),
     "Water": (
         "Water service coverage",
@@ -50,6 +48,29 @@ SECTION_INFO = {
         "Emergency services",
         "View the locations of the Hospital, Police Station, and Fire Station on the city map.",
     ),
+}
+
+TRAFFIC_EVENTS = {
+    "Traffic Jam": {
+        "congestion": 12,
+        "aqi": 5,
+        "response": "Adaptive traffic signals activated and alternate routes suggested.",
+    },
+    "Road Blocked": {
+        "congestion": 18,
+        "aqi": 7,
+        "response": "Road diversion activated and emergency route monitoring started.",
+    },
+    "Heavy Traffic": {
+        "congestion": 8,
+        "aqi": 3,
+        "response": "Traffic signal timing adjusted to improve vehicle flow.",
+    },
+    "Clear Road": {
+        "congestion": -10,
+        "aqi": -4,
+        "response": "Traffic returned toward normal flow and signal timing was restored.",
+    },
 }
 
 
@@ -75,7 +96,7 @@ def reset_simulation():
     st.session_state.event_log = [
         {
             "time": current_time(),
-            "message": "City data reset to the Version 1 starting values.",
+            "message": "City data reset to the starting values.",
         }
     ]
 
@@ -86,7 +107,6 @@ st.set_page_config(
     layout="wide",
 )
 
-# Streamlit remembers these values while the app is open.
 if "city_stats" not in st.session_state:
     st.session_state.city_stats = STARTING_STATS.copy()
     st.session_state.simulation_runs = 0
@@ -106,7 +126,6 @@ if "city_stats" not in st.session_state:
         },
     ]
 
-# The sidebar provides simple navigation between city systems.
 st.sidebar.title("Smart City 360")
 st.sidebar.caption("CITY OPERATIONS")
 selected_section = st.sidebar.radio("Navigate", SECTIONS)
@@ -114,7 +133,6 @@ st.sidebar.divider()
 st.sidebar.caption("DEMO CITY")
 st.sidebar.write("Greenfield")
 
-# The buttons update the sample city data for this browser session only.
 title_column, control_column = st.columns([3, 1])
 
 with title_column:
@@ -140,7 +158,6 @@ with control_column:
         stats = st.session_state.city_stats
         run_number = st.session_state.simulation_runs + 1
 
-        # Each click makes one small, predictable change to the demo values.
         stats["traffic"] = max(36, stats["traffic"] - 4)
         stats["energy"] = min(94, stats["energy"] + 2)
         stats["water"] = min(98, stats["water"] + 1)
@@ -161,9 +178,9 @@ else:
 
 stats = st.session_state.city_stats
 
-# These six indicators form the city-wide summary.
 st.subheader("City statistics")
 metric_columns = st.columns(3)
+
 metrics = [
     ("Population", f"{stats['population'] / 1_000_000:.2f}M"),
     ("Traffic · congestion", f"{stats['traffic']}%"),
@@ -177,16 +194,63 @@ for index, (label, value) in enumerate(metrics):
     with metric_columns[index % 3]:
         st.metric(label, value)
 
-# Non-dashboard navigation shows a short explanation for the selected system.
-if selected_section != "Dashboard":
+if selected_section == "Traffic":
+    st.subheader("Traffic Management Center")
+    st.write("Simulate a traffic event and see how the city responds.")
+
+    traffic_event = st.selectbox(
+        "Select a traffic event",
+        list(TRAFFIC_EVENTS.keys()),
+    )
+
+    event_info = TRAFFIC_EVENTS[traffic_event]
+
+    preview_column, response_column = st.columns([1, 2])
+
+    with preview_column:
+        st.metric("Current congestion", f"{stats['traffic']}%")
+
+    with response_column:
+        st.info(
+            f"Planned response: {event_info['response']}"
+        )
+
+    if st.button(
+        "Respond to Traffic Event",
+        type="primary",
+        use_container_width=True,
+    ):
+        old_congestion = stats["traffic"]
+        old_aqi = stats["air_quality"]
+
+        stats["traffic"] = max(
+            20,
+            min(95, stats["traffic"] + event_info["congestion"]),
+        )
+
+        stats["air_quality"] = max(
+            10,
+            min(100, stats["air_quality"] + event_info["aqi"]),
+        )
+
+        st.session_state.simulation_started = True
+
+        add_event(
+            f"{traffic_event}: congestion changed {old_congestion}% → "
+            f"{stats['traffic']}%. AQI changed {old_aqi} → {stats['air_quality']}."
+        )
+
+        st.success(event_info["response"])
+
+elif selected_section != "Dashboard":
     detail_title, detail_text = SECTION_INFO[selected_section]
+
     st.subheader(f"{selected_section} overview")
+
     if selected_section == "Emergency":
         st.info(detail_text)
     else:
-        if selected_section == "Traffic":
-            detail_value = f"{stats['traffic']}%"
-        elif selected_section == "Energy":
+        if selected_section == "Energy":
             detail_value = f"{stats['energy']}%"
         elif selected_section == "Water":
             detail_value = f"{stats['water']}%"
@@ -196,45 +260,62 @@ if selected_section != "Dashboard":
             detail_value = str(stats["air_quality"])
 
         detail_column, explanation_column = st.columns([1, 3])
+
         with detail_column:
             st.metric(detail_title, detail_value)
+
         with explanation_column:
             st.write(detail_text)
 
-# The fictional city map is made from simple rows of labeled blocks.
 st.subheader("Greenfield city map")
 st.caption("A simple, fictional layout · not to scale")
 
 map_rows = [
     (
         "NORTH DISTRICT",
-        [("SCHOOL", "North Campus"), ("PARK", "North Park"), ("FIRE STATION", "Station 1")],
+        [
+            ("SCHOOL", "North Campus"),
+            ("PARK", "North Park"),
+            ("FIRE STATION", "Station 1"),
+        ],
     ),
     (
         "CENTRAL DISTRICT",
-        [("HOSPITAL", "Greenfield Medical"), ("CITY CENTER", "Central Avenue"), ("POLICE STATION", "Central Precinct")],
+        [
+            ("HOSPITAL", "Greenfield Medical"),
+            ("CITY CENTER", "Central Avenue"),
+            ("POLICE STATION", "Central Precinct"),
+        ],
     ),
     (
         "SOUTH DISTRICT",
-        [("POWER PLANT", "Solar Grid"), ("COMMUNITY HUB", "South Square"), ("WATER WORKS", "Reservoir Road")],
+        [
+            ("POWER PLANT", "Solar Grid"),
+            ("COMMUNITY HUB", "South Square"),
+            ("WATER WORKS", "Reservoir Road"),
+        ],
     ),
 ]
 
 for district_name, places in map_rows:
     st.caption(district_name)
     place_columns = st.columns(3)
+
     for index, (place_name, place_detail) in enumerate(places):
         with place_columns[index]:
             with st.container(border=True):
                 st.markdown(f"**{place_name}**")
                 st.caption(place_detail)
+
     st.caption("────────────── Main Avenue ──────────────")
 
-# Recent simulation activity stays visible on every navigation section.
 st.subheader("Event Log")
+
 for event in st.session_state.event_log:
     time_column, message_column = st.columns([1, 7])
+
     with time_column:
         st.caption(event["time"])
+
     with message_column:
         st.write(event["message"])
