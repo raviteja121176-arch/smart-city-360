@@ -264,3 +264,280 @@ st.subheader("City statistics")
 metric_columns = st.columns(3)
 
 metrics = [
+    (
+        "Population",
+        f"{stats['population'] / 1_000_000:.2f}M",
+    ),
+    (
+        "Traffic · congestion",
+        f"{stats['traffic']}%",
+    ),
+    (
+        "Energy · renewable share",
+        f"{stats['energy']}%",
+    ),
+    (
+        "Water · service coverage",
+        f"{stats['water']}%",
+    ),
+    (
+        "Waste · recycled",
+        f"{stats['waste']}%",
+    ),
+    (
+        "Air Quality Index",
+        str(stats["air_quality"]),
+    ),
+]
+
+
+for index, (label, value) in enumerate(metrics):
+    with metric_columns[index % 3]:
+        st.metric(label, value)
+
+
+# Traffic Management Center
+if selected_section == "Traffic":
+
+    st.subheader("🚦 Traffic Management Center")
+
+    st.write(
+        "Simulate a traffic event and see how the city responds."
+    )
+
+    traffic_event = st.selectbox(
+        "Select a traffic event",
+        list(TRAFFIC_EVENTS.keys()),
+    )
+
+    event_info = TRAFFIC_EVENTS[traffic_event]
+
+    preview_column, response_column = st.columns([1, 2])
+
+    with preview_column:
+        st.metric(
+            "Current congestion",
+            f"{stats['traffic']}%",
+        )
+
+    with response_column:
+        st.info(
+            f"Planned response: {event_info['response']}"
+        )
+
+    if st.button(
+        "Respond to Traffic Event",
+        type="primary",
+        use_container_width=True,
+    ):
+
+        old_congestion = stats["traffic"]
+        old_aqi = stats["air_quality"]
+
+        stats["traffic"] = max(
+            20,
+            min(
+                95,
+                stats["traffic"]
+                + event_info["congestion"],
+            ),
+        )
+
+        stats["air_quality"] = max(
+            10,
+            min(
+                100,
+                stats["air_quality"]
+                + event_info["aqi"],
+            ),
+        )
+
+        st.session_state.simulation_started = True
+
+        add_event(
+            f"{traffic_event}: congestion changed "
+            f"{old_congestion}% → {stats['traffic']}%. "
+            f"AQI changed {old_aqi} → {stats['air_quality']}."
+        )
+
+        st.success(event_info["response"])
+
+
+# Emergency Management Center
+elif selected_section == "Emergency":
+
+    st.subheader("🚨 Emergency Control Center")
+
+    st.write(
+        "Simulate an emergency and see which city service is activated."
+    )
+
+    emergency_event = st.selectbox(
+        "Select an emergency",
+        list(EMERGENCY_EVENTS.keys()),
+    )
+
+    event_info = EMERGENCY_EVENTS[emergency_event]
+
+    service_column, status_column = st.columns(2)
+
+    with service_column:
+        st.metric(
+            "Primary response service",
+            event_info["service"],
+        )
+
+    with status_column:
+        st.metric(
+            "Current traffic",
+            f"{stats['traffic']}%",
+        )
+
+    st.info(
+        f"Planned response: {event_info['response']}"
+    )
+
+    if st.button(
+        "🚨 Dispatch Emergency Response",
+        type="primary",
+        use_container_width=True,
+    ):
+
+        old_traffic = stats["traffic"]
+        old_aqi = stats["air_quality"]
+
+        stats["traffic"] = max(
+            20,
+            min(
+                95,
+                stats["traffic"]
+                + event_info["traffic"],
+            ),
+        )
+
+        stats["air_quality"] = max(
+            10,
+            min(
+                100,
+                stats["air_quality"]
+                + event_info["aqi"],
+            ),
+        )
+
+        st.session_state.simulation_started = True
+
+        add_event(
+            f"{emergency_event} detected. "
+            f"{event_info['service']} activated. "
+            f"Traffic {old_traffic}% → {stats['traffic']}%, "
+            f"AQI {old_aqi} → {stats['air_quality']}."
+        )
+
+        st.success(event_info["response"])
+
+
+# Other section information
+elif selected_section != "Dashboard":
+
+    detail_title, detail_text = SECTION_INFO[selected_section]
+
+    st.subheader(
+        f"{selected_section} overview"
+    )
+
+    if selected_section == "Energy":
+        detail_value = f"{stats['energy']}%"
+
+    elif selected_section == "Water":
+        detail_value = f"{stats['water']}%"
+
+    elif selected_section == "Waste":
+        detail_value = f"{stats['waste']}%"
+
+    else:
+        detail_value = str(stats["air_quality"])
+
+    detail_column, explanation_column = st.columns([1, 3])
+
+    with detail_column:
+        st.metric(
+            detail_title,
+            detail_value,
+        )
+
+    with explanation_column:
+        st.write(detail_text)
+
+
+# Greenfield city map
+st.subheader("Greenfield city map")
+
+st.caption(
+    "A simple, fictional layout · not to scale"
+)
+
+
+map_rows = [
+    (
+        "NORTH DISTRICT",
+        [
+            ("SCHOOL", "North Campus"),
+            ("PARK", "North Park"),
+            ("FIRE STATION", "Station 1"),
+        ],
+    ),
+    (
+        "CENTRAL DISTRICT",
+        [
+            ("HOSPITAL", "Greenfield Medical"),
+            ("CITY CENTER", "Central Avenue"),
+            ("POLICE STATION", "Central Precinct"),
+        ],
+    ),
+    (
+        "SOUTH DISTRICT",
+        [
+            ("POWER PLANT", "Solar Grid"),
+            ("COMMUNITY HUB", "South Square"),
+            ("WATER WORKS", "Reservoir Road"),
+        ],
+    ),
+]
+
+
+for district_name, places in map_rows:
+
+    st.caption(district_name)
+
+    place_columns = st.columns(3)
+
+    for index, (place_name, place_detail) in enumerate(places):
+
+        with place_columns[index]:
+
+            with st.container(border=True):
+
+                st.markdown(
+                    f"**{place_name}**"
+                )
+
+                st.caption(place_detail)
+
+    st.caption(
+        "────────────── Main Avenue ──────────────"
+    )
+
+
+# Event Log
+st.subheader("Event Log")
+
+
+for event in st.session_state.event_log:
+
+    time_column, message_column = st.columns([1, 7])
+
+    with time_column:
+        st.caption(event["time"])
+
+    with message_column:
+        st.write(event["message"])
